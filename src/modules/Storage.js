@@ -25,9 +25,9 @@ export class Storage {
                 ],
                 'DONE': [
                     { id: '10', content: 'Чтобы узнать больше хитростей, ознакомьтесь с руководством.' },
-                    { id: '11', content: 'Используйте столько досок, сколько хотите. Мы сделаем больше!' },
-                    { id: '12', content: 'Хотите использовать горячие клавиши? У нас они есть!' },
-                    { id: '13', content: 'Хотите получать обновления о новых функциях?' }
+                    { id: '11', content: 'Отличная работа! Задача выполнена.' },
+                    { id: '12', content: 'Проект завершен успешно.' },
+                    { id: '13', content: 'Все задачи выполнены в срок.' }
                 ]
             }
         };
@@ -35,5 +35,9 @@ export class Storage {
 
     static saveState(state) {
         localStorage.setItem(this.STORAGE_KEY, JSON.stringify(state));
+    }
+
+    static clearState() {
+        localStorage.removeItem(this.STORAGE_KEY);
     }
 } 

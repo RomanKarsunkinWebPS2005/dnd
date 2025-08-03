@@ -88,7 +88,7 @@ body {
     border-radius: 3px;
     box-shadow: 0 1px 0 rgba(9, 30, 66, 0.13);
     padding: 0.5rem 0.75rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.25rem;
     cursor: grab;
     position: relative;
     transition: box-shadow 0.2s;
@@ -142,6 +142,7 @@ body {
 
 .card-delete:hover {
     background-color: #c82333;
+    cursor: pointer;
 }
 
 .add-card-button {
@@ -222,7 +223,7 @@ body {
     min-height: 8px;
     background-color: transparent;
     transition: all 0.2s ease;
-    margin: 0.25rem 0;
+    margin: 0;
     border-radius: 4px;
     position: relative;
     border: none;
@@ -230,7 +231,7 @@ body {
 
 .drop-zone.active {
     /* Только высота, без цвета, рамки и тени */
-    margin: 0.5rem 0;
+    margin: 0;
 }
 
 .drop-zone::before {
@@ -277,15 +278,26 @@ body.dragging, body.dragging * {
     cursor: grabbing !important;
 }
 
+.card-placeholder {
+    height: 60px;
+    margin-bottom: 0.5rem;
+    border: 2px dashed #0079bf;
+    border-radius: 3px;
+    background-color: rgba(0, 121, 191, 0.1);
+    transition: all 0.2s ease;
+}
+
 .ghost-card {
     pointer-events: none;
-    box-shadow: 0 4px 12px rgba(9, 30, 66, 0.15);
-    opacity: 0.8;
+    box-shadow: 0 8px 24px rgba(9, 30, 66, 0.25);
+    opacity: 0.9;
     border-radius: 3px;
     background: white;
     z-index: 9999;
     position: fixed;
     transition: none;
+    transform: rotate(3deg);
+    border: 1px solid #0079bf;
 }
 
 /* Адаптивность */

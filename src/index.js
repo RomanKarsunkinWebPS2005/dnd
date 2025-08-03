@@ -32,7 +32,7 @@ class TrelloApp {
         
         this.columns.forEach(columnTitle => {
             const column = this.ui.createColumn(columnTitle);
-            this.board.appendChild(column);
+            this.board.append(column);
         });
     }
 

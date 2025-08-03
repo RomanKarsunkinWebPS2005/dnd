@@ -21,8 +21,8 @@ export class CardManager {
             this.deleteCard(card.id);
         });
 
-        cardElement.appendChild(content);
-        cardElement.appendChild(deleteButton);
+        cardElement.append(content);
+        cardElement.append(deleteButton);
 
         return cardElement;
     }

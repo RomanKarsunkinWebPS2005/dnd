@@ -19,29 +19,29 @@ export class UI {
         menu.className = 'column-menu';
         menu.innerHTML = '⋯';
 
-        header.appendChild(titleElement);
-        header.appendChild(menu);
+        header.append(titleElement);
+        header.append(menu);
 
         const cardsContainer = document.createElement('div');
         cardsContainer.className = 'cards-container';
 
         // Добавляем drop-зону перед первой карточкой
-        cardsContainer.appendChild(this.createDropZone(0));
+        cardsContainer.append(this.createDropZone(0));
 
         // Добавляем карточки и drop-зоны между ними
         const cards = this.app.state.columns[title] || [];
         cards.forEach((card, idx) => {
             const cardElement = this.app.cardManager.createCard(card);
-            cardsContainer.appendChild(cardElement);
-            cardsContainer.appendChild(this.createDropZone(idx + 1));
+            cardsContainer.append(cardElement);
+            cardsContainer.append(this.createDropZone(idx + 1));
         });
 
         // Добавляем кнопку "Add another card"
         const addCardButton = this.createAddCardButton(title);
-        cardsContainer.appendChild(addCardButton);
+        cardsContainer.append(addCardButton);
 
-        column.appendChild(header);
-        column.appendChild(cardsContainer);
+        column.append(header);
+        column.append(cardsContainer);
 
         return column;
     }
@@ -85,11 +85,11 @@ export class UI {
         cancelButton.className = 'add-card-cancel';
         cancelButton.innerHTML = '×';
 
-        actions.appendChild(submitButton);
-        actions.appendChild(cancelButton);
+        actions.append(submitButton);
+        actions.append(cancelButton);
 
-        form.appendChild(textarea);
-        form.appendChild(actions);
+        form.append(textarea);
+        form.append(actions);
 
         addButton.style.display = 'none';
         cardsContainer.insertBefore(form, addButton);
