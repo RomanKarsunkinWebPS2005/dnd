@@ -60,10 +60,13 @@ export class DragDrop {
             
             this.hasMoved = true;
             this.cardHeight = this.draggedCard.offsetHeight;
-            this.draggedCard.remove();
+            
+            if (this.draggedCard && this.draggedCard.parentNode) {
+                this.draggedCard.remove();
+            }
             
             const nextElement = this.originalNextSibling;
-            if (nextElement && nextElement.classList.contains('drop-zone')) {
+            if (nextElement && nextElement.classList.contains('drop-zone') && nextElement.parentNode) {
                 nextElement.remove();
             }
         }
@@ -142,10 +145,33 @@ export class DragDrop {
                 const rect = card.getBoundingClientRect();
                 const mouseY = e.clientY;
                 
-                if (mouseY < rect.top + rect.height / 2) {
+                const cardCenter = rect.top + rect.height / 2;
+                const mousePosition = mouseY;
+                
+                if (mousePosition < cardCenter) {
                     activeDropZone = card.previousElementSibling;
                 } else {
                     activeDropZone = card.nextElementSibling;
+                }
+                
+                if (activeDropZone && !activeDropZone.classList.contains('drop-zone')) {
+                    const cardsContainer = card.closest('.cards-container');
+                    if (cardsContainer) {
+                        const allDropZones = cardsContainer.querySelectorAll('.drop-zone');
+                        let closestDropZone = null;
+                        let minDistance = Infinity;
+                        
+                        allDropZones.forEach(zone => {
+                            const zoneRect = zone.getBoundingClientRect();
+                            const distance = Math.abs(zoneRect.top - mouseY);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                closestDropZone = zone;
+                            }
+                        });
+                        
+                        activeDropZone = closestDropZone;
+                    }
                 }
             } else {
                 const column = elementUnderMouse?.closest('.column');
@@ -201,31 +227,36 @@ export class DragDrop {
         const targetCards = this.app.state.columns[targetColumn];
 
         const isSamePosition = sourceColumn === targetColumn && sourceIndex === insertPosition;
-        const isSamePositionAfterMove = sourceColumn === targetColumn && sourceIndex === insertPosition - 1;
+        const isMovingDownOnePosition = sourceColumn === targetColumn && sourceIndex === insertPosition - 1;
 
-        if (isSamePosition || isSamePositionAfterMove) {
+        if (isSamePosition && !isMovingDownOnePosition) {
             this.returnCardToOriginalPosition();
             return;
         }
 
-        const [cardObj] = sourceCards.splice(sourceIndex, 1);
-        targetCards.splice(insertPosition, 0, cardObj);
-        this.app.saveState();
+        try {
+            const [cardObj] = sourceCards.splice(sourceIndex, 1);
+            targetCards.splice(insertPosition, 0, cardObj);
+            this.app.saveState();
 
-        if (sourceColumn !== targetColumn) {
-            const sourceColumnElement = this.app.board.querySelector(`[data-column="${sourceColumn}"]`);
-            if (sourceColumnElement) {
-                const sourceCardsContainer = sourceColumnElement.querySelector('.cards-container');
-                if (sourceCardsContainer) {
-                    const sourceDropZones = sourceCardsContainer.querySelectorAll('.drop-zone');
-                    sourceDropZones.forEach(zone => zone.remove());
-                    
-                    this.app.cardManager.ensureDropZoneStructure(sourceCardsContainer);
+            if (sourceColumn !== targetColumn) {
+                const sourceColumnElement = this.app.board.querySelector(`[data-column="${sourceColumn}"]`);
+                if (sourceColumnElement) {
+                    const sourceCardsContainer = sourceColumnElement.querySelector('.cards-container');
+                    if (sourceCardsContainer) {
+                        const sourceDropZones = sourceCardsContainer.querySelectorAll('.drop-zone');
+                        sourceDropZones.forEach(zone => zone.remove());
+                        
+                        this.app.cardManager.ensureDropZoneStructure(sourceCardsContainer);
+                    }
                 }
             }
-        }
 
-        this.insertCardInDOM(activeDropZone);
+            this.insertCardInDOM(activeDropZone);
+        } catch (error) {
+            console.error('Error moving card:', error);
+            this.returnCardToOriginalPosition();
+        }
     }
 
     getInsertPosition(activeDropZone) {
@@ -254,9 +285,13 @@ export class DragDrop {
         activeDropZone.style.height = '8px';
         activeDropZone.classList.remove('active');
 
-        cardsContainer.insertBefore(this.draggedCard, activeDropZone);
-        
-        activeDropZone.remove();
+        if (activeDropZone && cardsContainer.contains(activeDropZone)) {
+            cardsContainer.insertBefore(this.draggedCard, activeDropZone);
+            activeDropZone.remove();
+        } else {
+            this.returnCardToOriginalPosition();
+            return;
+        }
         
         this.app.cardManager.ensureDropZoneStructure(cardsContainer);
     }
@@ -270,10 +305,37 @@ export class DragDrop {
 
     returnCardToOriginalPosition() {
         if (this.originalParent && this.draggedCard) {
-            if (this.originalNextSibling) {
+            if (this.originalNextSibling && this.originalParent.contains(this.originalNextSibling)) {
                 this.originalParent.insertBefore(this.draggedCard, this.originalNextSibling);
             } else {
-                this.originalParent.append(this.draggedCard);
+                const cards = this.originalParent.querySelectorAll('.card');
+                const cardId = this.draggedCard.dataset.cardId;
+                
+                const columnTitle = this.originalParent.closest('.column').dataset.column;
+                const columnCards = this.app.state.columns[columnTitle] || [];
+                const cardIndex = columnCards.findIndex(card => card.id === cardId);
+                
+                if (cardIndex !== -1 && cards.length > 0) {
+                    if (cardIndex === 0) {
+                        this.originalParent.insertBefore(this.draggedCard, cards[0]);
+                    } else if (cardIndex >= cards.length) {
+                        const addButton = this.originalParent.querySelector('.add-card-button');
+                        if (addButton) {
+                            this.originalParent.insertBefore(this.draggedCard, addButton);
+                        } else {
+                            this.originalParent.append(this.draggedCard);
+                        }
+                    } else {
+                        this.originalParent.insertBefore(this.draggedCard, cards[cardIndex]);
+                    }
+                } else {
+                    const addButton = this.originalParent.querySelector('.add-card-button');
+                    if (addButton) {
+                        this.originalParent.insertBefore(this.draggedCard, addButton);
+                    } else {
+                        this.originalParent.append(this.draggedCard);
+                    }
+                }
             }
             
             this.app.cardManager.ensureDropZoneStructure(this.originalParent);
