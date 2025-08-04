@@ -34,40 +34,75 @@ export class CardManager {
         if (!this.app.state.columns[columnTitle]) {
             this.app.state.columns[columnTitle] = [];
         }
-        this.app.state.columns[columnTitle].push(card);
+        
+        const cards = this.app.state.columns[columnTitle];
+        cards.push(card);
         this.app.saveState();
 
         const column = this.app.board.querySelector(`[data-column="${columnTitle}"]`);
         const cardsContainer = column.querySelector('.cards-container');
         const addButton = cardsContainer.querySelector('.add-card-button');
+
         const cardElement = this.createCard(card);
         
         cardsContainer.insertBefore(cardElement, addButton);
+        
+        const newDropZone = this.createDropZone(cards.length);
+        cardsContainer.insertBefore(newDropZone, addButton);
+        
+        this.updateDropZonePositions(cardsContainer);
+    }
+
+    createDropZone(position) {
+        const dropZone = document.createElement('div');
+        dropZone.className = 'drop-zone';
+        dropZone.dataset.position = position;
+        return dropZone;
+    }
+
+    updateDropZonePositions(cardsContainer) {
+        const dropZones = cardsContainer.querySelectorAll('.drop-zone');
+        dropZones.forEach((zone, index) => {
+            zone.dataset.position = index;
+        });
     }
 
     deleteCard(cardId) {
-        // Находим карточку в состоянии и удаляем её
+        let sourceColumn = null;
+        let cardIndex = -1;
+        
         for (const columnTitle in this.app.state.columns) {
             const cards = this.app.state.columns[columnTitle];
-            const cardIndex = cards.findIndex(card => card.id === cardId);
+            cardIndex = cards.findIndex(card => card.id === cardId);
             if (cardIndex !== -1) {
+                sourceColumn = columnTitle;
                 cards.splice(cardIndex, 1);
                 break;
             }
         }
-        this.app.saveState();
+        
+        if (sourceColumn) {
+            this.app.saveState();
+            
+            const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+            if (cardElement) {
+                const cardsContainer = cardElement.closest('.cards-container');
+                cardElement.remove();
+                
 
-        // Удаляем элемент из DOM
-        const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
-        if (cardElement) {
-            cardElement.remove();
+                const nextElement = cardElement.nextElementSibling;
+                if (nextElement && nextElement.classList.contains('drop-zone')) {
+                    nextElement.remove();
+                }
+                
+                if (cardsContainer) {
+                    this.updateDropZonePositions(cardsContainer);
+                }
+            }
         }
-        // После удаления карточки пересоздаём доску для корректных drop-зон
-        this.app.renderBoard();
     }
 
     moveCard(cardId, sourceColumnTitle, targetColumnTitle, insertIndex) {
-        // Находим карточку в исходной колонке
         const sourceCards = this.app.state.columns[sourceColumnTitle];
         const cardIndex = sourceCards.findIndex(card => card.id === cardId);
         
@@ -75,7 +110,6 @@ export class CardManager {
 
         const card = sourceCards.splice(cardIndex, 1)[0];
 
-        // Добавляем карточку в целевую колонку
         if (!this.app.state.columns[targetColumnTitle]) {
             this.app.state.columns[targetColumnTitle] = [];
         }

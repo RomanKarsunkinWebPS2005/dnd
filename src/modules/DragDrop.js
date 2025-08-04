@@ -8,6 +8,7 @@ export class DragDrop {
         this.offsetY = 0;
         this.originalParent = null;
         this.originalNextSibling = null;
+        this.originalColumn = null;
     }
 
     setupEventListeners() {
@@ -26,13 +27,13 @@ export class DragDrop {
             
             this.originalParent = card.parentNode;
             this.originalNextSibling = card.nextSibling;
+            this.originalColumn = card.closest('.column').dataset.column;
             
             const rect = card.getBoundingClientRect();
             this.offsetX = e.clientX - rect.left;
             this.offsetY = e.clientY - rect.top;
             
             this.createGhost(card);
-            
             card.remove();
             
             document.body.classList.add('dragging');
@@ -67,6 +68,7 @@ export class DragDrop {
         this.draggedCard = null;
         this.originalParent = null;
         this.originalNextSibling = null;
+        this.originalColumn = null;
     }
 
     createGhost(card) {
@@ -131,21 +133,15 @@ export class DragDrop {
 
     moveCard(e) {
         const activeDropZone = document.querySelector('.drop-zone.active');
+        
         if (!activeDropZone || !this.draggedCard) {
-            if (this.originalParent) {
-                if (this.originalNextSibling) {
-                    this.originalParent.insertBefore(this.draggedCard, this.originalNextSibling);
-                } else {
-                    this.originalParent.append(this.draggedCard);
-                }
-            }
+            this.returnCardToOriginalPosition();
             return;
         }
 
         const cardsContainer = activeDropZone.parentElement;
         const targetColumn = cardsContainer.closest('.column').dataset.column;
         const cardId = this.draggedCard.dataset.cardId;
-        const insertIndex = parseInt(activeDropZone.dataset.position);
 
         let sourceColumn = null;
         for (const col in this.app.state.columns) {
@@ -155,67 +151,81 @@ export class DragDrop {
             }
         }
 
-        if (sourceColumn) {
-            const sourceCards = this.app.state.columns[sourceColumn];
-            const sourceIndex = sourceCards.findIndex(card => card.id === cardId);
-            const targetCards = this.app.state.columns[targetColumn];
+        if (!sourceColumn) {
+            this.returnCardToOriginalPosition();
+            return;
+        }
 
-            const isSamePosition = sourceColumn === targetColumn && sourceIndex === insertIndex;
+        const insertPosition = this.getInsertPosition(activeDropZone);
 
-            if (!isSamePosition) {
-                const [cardObj] = sourceCards.splice(sourceIndex, 1);
+        const sourceCards = this.app.state.columns[sourceColumn];
+        const sourceIndex = sourceCards.findIndex(card => card.id === cardId);
+        const targetCards = this.app.state.columns[targetColumn];
 
-                targetCards.splice(insertIndex, 0, cardObj);
-                this.app.saveState();
+        const isSamePosition = sourceColumn === targetColumn && sourceIndex === insertPosition;
 
-                if (insertIndex === 0) {
-                    const firstCard = cardsContainer.querySelector('.card');
-                    if (firstCard) {
-                        cardsContainer.insertBefore(this.draggedCard, firstCard);
-                    } else {
-                        const addButton = cardsContainer.querySelector('.add-card-button');
-                        if (addButton) {
-                            cardsContainer.insertBefore(this.draggedCard, addButton);
-                        }
-                    }
-                } else {
-                    const cards = Array.from(cardsContainer.querySelectorAll('.card'));
-                    const dropZones = Array.from(cardsContainer.querySelectorAll('.drop-zone'));
-                    
-                    if (insertIndex === 0) {
-                        const firstCard = cardsContainer.querySelector('.card');
-                        if (firstCard) {
-                            cardsContainer.insertBefore(this.draggedCard, firstCard);
-                        } else {
-                            const addButton = cardsContainer.querySelector('.add-card-button');
-                            if (addButton) {
-                                cardsContainer.insertBefore(this.draggedCard, addButton);
-                            }
-                        }
-                    } else if (insertIndex <= cards.length) {
-                        if (cards[insertIndex - 1]) {
-                            cardsContainer.insertBefore(this.draggedCard, cards[insertIndex - 1].nextSibling);
-                        } else {
-                            const addButton = cardsContainer.querySelector('.add-card-button');
-                            if (addButton) {
-                                cardsContainer.insertBefore(this.draggedCard, addButton);
-                            }
-                        }
-                    } else {
-                        const addButton = cardsContainer.querySelector('.add-card-button');
-                        if (addButton) {
-                            cardsContainer.insertBefore(this.draggedCard, addButton);
-                        }
-                    }
-                }
+        if (isSamePosition) {
+            this.returnCardToOriginalPosition();
+            return;
+        }
+
+        const [cardObj] = sourceCards.splice(sourceIndex, 1);
+        targetCards.splice(insertPosition, 0, cardObj);
+        this.app.saveState();
+
+        this.insertCardInDOM(activeDropZone, insertPosition);
+    }
+
+    getInsertPosition(activeDropZone) {
+        const cardsContainer = activeDropZone.parentElement;
+        const cards = Array.from(cardsContainer.querySelectorAll('.card'));
+        
+        if (activeDropZone === cardsContainer.firstElementChild) {
+            return 0;
+        }
+        
+        let cardCount = 0;
+        let currentElement = cardsContainer.firstElementChild;
+        
+        while (currentElement && currentElement !== activeDropZone) {
+            if (currentElement.classList.contains('card')) {
+                cardCount++;
+            }
+            currentElement = currentElement.nextElementSibling;
+        }
+        
+        return cardCount;
+    }
+
+    insertCardInDOM(activeDropZone, insertPosition) {
+        const cardsContainer = activeDropZone.parentElement;
+        const addButton = cardsContainer.querySelector('.add-card-button');
+
+        activeDropZone.style.height = '8px';
+        activeDropZone.classList.remove('active');
+
+        cardsContainer.insertBefore(this.draggedCard, activeDropZone.nextSibling);
+        
+        activeDropZone.remove();
+        
+        const newDropZone = document.createElement('div');
+        newDropZone.className = 'drop-zone';
+        cardsContainer.insertBefore(newDropZone, this.draggedCard.nextSibling);
+    }
+
+    returnCardToOriginalPosition() {
+        if (this.originalParent && this.draggedCard) {
+            if (this.originalNextSibling) {
+                this.originalParent.insertBefore(this.draggedCard, this.originalNextSibling);
             } else {
-                if (this.originalParent) {
-                    if (this.originalNextSibling) {
-                        this.originalParent.insertBefore(this.draggedCard, this.originalNextSibling);
-                    } else {
-                        this.originalParent.append(this.draggedCard);
-                    }
-                }
+                this.originalParent.append(this.draggedCard);
+            }
+            
+            const nextElement = this.draggedCard.nextElementSibling;
+            if (!nextElement || !nextElement.classList.contains('drop-zone')) {
+                const newDropZone = document.createElement('div');
+                newDropZone.className = 'drop-zone';
+                this.originalParent.insertBefore(newDropZone, this.draggedCard.nextSibling);
             }
         }
     }

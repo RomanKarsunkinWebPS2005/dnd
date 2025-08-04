@@ -10,7 +10,6 @@ class TrelloApp {
         this.columns = ['TODO', 'IN PROGRESS', 'DONE'];
         this.state = Storage.loadState();
         
-        // Инициализируем модули
         this.cardManager = new CardManager(this);
         this.ui = new UI(this);
         this.dragDrop = new DragDrop(this);
@@ -41,7 +40,6 @@ class TrelloApp {
     }
 }
 
-// Инициализация приложения
 document.addEventListener('DOMContentLoaded', () => {
     new TrelloApp();
 }); 

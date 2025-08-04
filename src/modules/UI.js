@@ -25,18 +25,15 @@ export class UI {
         const cardsContainer = document.createElement('div');
         cardsContainer.className = 'cards-container';
 
-        // Добавляем drop-зону перед первой карточкой
-        cardsContainer.append(this.createDropZone(0));
+        cardsContainer.append(this.createDropZone());
 
-        // Добавляем карточки и drop-зоны между ними
         const cards = this.app.state.columns[title] || [];
         cards.forEach((card, idx) => {
             const cardElement = this.app.cardManager.createCard(card);
             cardsContainer.append(cardElement);
-            cardsContainer.append(this.createDropZone(idx + 1));
+            cardsContainer.append(this.createDropZone());
         });
 
-        // Добавляем кнопку "Add another card"
         const addCardButton = this.createAddCardButton(title);
         cardsContainer.append(addCardButton);
 
@@ -49,7 +46,6 @@ export class UI {
     createDropZone(position) {
         const dropZone = document.createElement('div');
         dropZone.className = 'drop-zone';
-        dropZone.dataset.position = position;
         return dropZone;
     }
 
@@ -94,7 +90,6 @@ export class UI {
         addButton.style.display = 'none';
         cardsContainer.insertBefore(form, addButton);
 
-        // Обработчики событий
         const handleSubmit = () => {
             const content = textarea.value.trim();
             if (content) {
