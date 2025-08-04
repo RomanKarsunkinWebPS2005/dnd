@@ -47,24 +47,7 @@ export class CardManager {
         
         cardsContainer.insertBefore(cardElement, addButton);
         
-        const newDropZone = this.createDropZone(cards.length);
-        cardsContainer.insertBefore(newDropZone, addButton);
-        
-        this.updateDropZonePositions(cardsContainer);
-    }
-
-    createDropZone(position) {
-        const dropZone = document.createElement('div');
-        dropZone.className = 'drop-zone';
-        dropZone.dataset.position = position;
-        return dropZone;
-    }
-
-    updateDropZonePositions(cardsContainer) {
-        const dropZones = cardsContainer.querySelectorAll('.drop-zone');
-        dropZones.forEach((zone, index) => {
-            zone.dataset.position = index;
-        });
+        this.ensureDropZoneStructure(cardsContainer);
     }
 
     deleteCard(cardId) {
@@ -87,18 +70,38 @@ export class CardManager {
             const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
             if (cardElement) {
                 const cardsContainer = cardElement.closest('.cards-container');
+                
                 cardElement.remove();
                 
-
-                const nextElement = cardElement.nextElementSibling;
-                if (nextElement && nextElement.classList.contains('drop-zone')) {
-                    nextElement.remove();
-                }
-                
-                if (cardsContainer) {
-                    this.updateDropZonePositions(cardsContainer);
-                }
+                this.ensureDropZoneStructure(cardsContainer);
             }
+        }
+    }
+
+    ensureDropZoneStructure(cardsContainer) {
+        const children = Array.from(cardsContainer.children);
+        const cards = children.filter(child => child.classList.contains('card'));
+        const dropZones = children.filter(child => child.classList.contains('drop-zone'));
+        const addButton = children.find(child => child.classList.contains('add-card-button'));
+        
+        dropZones.forEach(zone => {
+            zone.remove();
+        });
+        
+        if (cards.length > 0) {
+            const topDropZone = document.createElement('div');
+            topDropZone.className = 'drop-zone';
+            cardsContainer.insertBefore(topDropZone, cards[0]);
+            
+            cards.forEach(card => {
+                const dropZone = document.createElement('div');
+                dropZone.className = 'drop-zone';
+                cardsContainer.insertBefore(dropZone, card.nextSibling);
+            });
+        } else {
+            const dropZone = document.createElement('div');
+            dropZone.className = 'drop-zone';
+            cardsContainer.insertBefore(dropZone, addButton);
         }
     }
 

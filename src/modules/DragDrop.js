@@ -9,6 +9,10 @@ export class DragDrop {
         this.originalParent = null;
         this.originalNextSibling = null;
         this.originalColumn = null;
+        this.hasMoved = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.cardHeight = 0;
     }
 
     setupEventListeners() {
@@ -24,6 +28,7 @@ export class DragDrop {
             
             this.isDragging = true;
             this.draggedCard = card;
+            this.hasMoved = false;
             
             this.originalParent = card.parentNode;
             this.originalNextSibling = card.nextSibling;
@@ -33,15 +38,35 @@ export class DragDrop {
             this.offsetX = e.clientX - rect.left;
             this.offsetY = e.clientY - rect.top;
             
-            this.createGhost(card);
-            card.remove();
+            this.startX = e.clientX;
+            this.startY = e.clientY;
             
+            this.createGhost(card);
             document.body.classList.add('dragging');
         }
     }
 
     handleMouseMove(e) {
         if (!this.isDragging || !this.ghost) return;
+        
+        if (!this.hasMoved) {
+            const moveThreshold = 5;
+            const deltaX = Math.abs(e.clientX - this.startX);
+            const deltaY = Math.abs(e.clientY - this.startY);
+            
+            if (deltaX < moveThreshold && deltaY < moveThreshold) {
+                return;
+            }
+            
+            this.hasMoved = true;
+            this.cardHeight = this.draggedCard.offsetHeight;
+            this.draggedCard.remove();
+            
+            const nextElement = this.originalNextSibling;
+            if (nextElement && nextElement.classList.contains('drop-zone')) {
+                nextElement.remove();
+            }
+        }
         
         this.ghost.style.left = (e.clientX - this.offsetX) + 'px';
         this.ghost.style.top = (e.clientY - this.offsetY) + 'px';
@@ -61,7 +86,11 @@ export class DragDrop {
         
         document.body.classList.remove('dragging');
         
-        this.moveCard(e);
+        if (this.hasMoved) {
+            this.moveCard(e);
+        } else {
+            this.returnCardToOriginalPosition();
+        }
         
         this.clearDropZones();
         
@@ -69,6 +98,10 @@ export class DragDrop {
         this.originalParent = null;
         this.originalNextSibling = null;
         this.originalColumn = null;
+        this.hasMoved = false;
+        this.startX = 0;
+        this.startY = 0;
+        this.cardHeight = 0;
     }
 
     createGhost(card) {
@@ -84,6 +117,11 @@ export class DragDrop {
         this.ghost.style.backgroundColor = 'white';
         this.ghost.style.width = card.offsetWidth + 'px';
         this.ghost.style.height = card.offsetHeight + 'px';
+        
+        const rect = card.getBoundingClientRect();
+        this.ghost.style.left = rect.left + 'px';
+        this.ghost.style.top = rect.top + 'px';
+        
         document.body.append(this.ghost);
     }
 
@@ -100,7 +138,7 @@ export class DragDrop {
             activeDropZone = elementUnderMouse;
         } else {
             const card = elementUnderMouse?.closest('.card');
-            if (card) {
+            if (card && card !== this.draggedCard) {
                 const rect = card.getBoundingClientRect();
                 const mouseY = e.clientY;
                 
@@ -127,7 +165,7 @@ export class DragDrop {
 
         if (activeDropZone && activeDropZone.classList.contains('drop-zone')) {
             activeDropZone.classList.add('active');
-            activeDropZone.style.height = '60px';
+            activeDropZone.style.height = this.cardHeight + 'px';
         }
     }
 
@@ -163,8 +201,9 @@ export class DragDrop {
         const targetCards = this.app.state.columns[targetColumn];
 
         const isSamePosition = sourceColumn === targetColumn && sourceIndex === insertPosition;
+        const isSamePositionAfterMove = sourceColumn === targetColumn && sourceIndex === insertPosition - 1;
 
-        if (isSamePosition) {
+        if (isSamePosition || isSamePositionAfterMove) {
             this.returnCardToOriginalPosition();
             return;
         }
@@ -173,12 +212,24 @@ export class DragDrop {
         targetCards.splice(insertPosition, 0, cardObj);
         this.app.saveState();
 
-        this.insertCardInDOM(activeDropZone, insertPosition);
+        if (sourceColumn !== targetColumn) {
+            const sourceColumnElement = this.app.board.querySelector(`[data-column="${sourceColumn}"]`);
+            if (sourceColumnElement) {
+                const sourceCardsContainer = sourceColumnElement.querySelector('.cards-container');
+                if (sourceCardsContainer) {
+                    const sourceDropZones = sourceCardsContainer.querySelectorAll('.drop-zone');
+                    sourceDropZones.forEach(zone => zone.remove());
+                    
+                    this.app.cardManager.ensureDropZoneStructure(sourceCardsContainer);
+                }
+            }
+        }
+
+        this.insertCardInDOM(activeDropZone);
     }
 
     getInsertPosition(activeDropZone) {
         const cardsContainer = activeDropZone.parentElement;
-        const cards = Array.from(cardsContainer.querySelectorAll('.card'));
         
         if (activeDropZone === cardsContainer.firstElementChild) {
             return 0;
@@ -197,20 +248,24 @@ export class DragDrop {
         return cardCount;
     }
 
-    insertCardInDOM(activeDropZone, insertPosition) {
+    insertCardInDOM(activeDropZone) {
         const cardsContainer = activeDropZone.parentElement;
-        const addButton = cardsContainer.querySelector('.add-card-button');
 
         activeDropZone.style.height = '8px';
         activeDropZone.classList.remove('active');
 
-        cardsContainer.insertBefore(this.draggedCard, activeDropZone.nextSibling);
+        cardsContainer.insertBefore(this.draggedCard, activeDropZone);
         
         activeDropZone.remove();
         
-        const newDropZone = document.createElement('div');
-        newDropZone.className = 'drop-zone';
-        cardsContainer.insertBefore(newDropZone, this.draggedCard.nextSibling);
+        this.app.cardManager.ensureDropZoneStructure(cardsContainer);
+    }
+
+    clearDropZones() {
+        document.querySelectorAll('.drop-zone').forEach(zone => {
+            zone.classList.remove('active');
+            zone.style.height = '8px';
+        });
     }
 
     returnCardToOriginalPosition() {
@@ -221,19 +276,7 @@ export class DragDrop {
                 this.originalParent.append(this.draggedCard);
             }
             
-            const nextElement = this.draggedCard.nextElementSibling;
-            if (!nextElement || !nextElement.classList.contains('drop-zone')) {
-                const newDropZone = document.createElement('div');
-                newDropZone.className = 'drop-zone';
-                this.originalParent.insertBefore(newDropZone, this.draggedCard.nextSibling);
-            }
+            this.app.cardManager.ensureDropZoneStructure(this.originalParent);
         }
-    }
-
-    clearDropZones() {
-        document.querySelectorAll('.drop-zone').forEach(zone => {
-            zone.classList.remove('active');
-            zone.style.height = '8px';
-        });
     }
 } 

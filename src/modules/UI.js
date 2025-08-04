@@ -25,28 +25,21 @@ export class UI {
         const cardsContainer = document.createElement('div');
         cardsContainer.className = 'cards-container';
 
-        cardsContainer.append(this.createDropZone());
-
         const cards = this.app.state.columns[title] || [];
         cards.forEach((card, idx) => {
             const cardElement = this.app.cardManager.createCard(card);
             cardsContainer.append(cardElement);
-            cardsContainer.append(this.createDropZone());
         });
 
         const addCardButton = this.createAddCardButton(title);
         cardsContainer.append(addCardButton);
 
+        this.app.cardManager.ensureDropZoneStructure(cardsContainer);
+
         column.append(header);
         column.append(cardsContainer);
 
         return column;
-    }
-
-    createDropZone(position) {
-        const dropZone = document.createElement('div');
-        dropZone.className = 'drop-zone';
-        return dropZone;
     }
 
     createAddCardButton(columnTitle) {
